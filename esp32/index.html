@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control Grúa Torre</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --danger: #cf6679;
+            --text: #ffffff;
+            --text-muted: #aaaaaa;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        p.subtitle {
+            color: var(--text-muted);
+            margin-top: 0;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .control-panel {
+            background-color: var(--panel-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            max-width: 400px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title {
+            color: var(--secondary);
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .joystick-group {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+        .btn {
+            background-color: #333333;
+            color: var(--text);
+            border: none;
+            border-radius: 15px; /* Botones más cuadrados y modernos */
+            width: 70px;
+            height: 70px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.4);
+            transition: transform 0.1s, background-color 0.2s, box-shadow 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none; /* Previene scroll y zoom en móviles */
+        }
+        .btn:active {
+            transform: translateY(4px);
+            background-color: #444444;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+        .btn.stop {
+            background-color: var(--danger);
+            border-radius: 10px;
+            width: 120px;
+            height: 50px;
+            font-size: 1.2rem;
+        }
+        .btn.stop:active {
+            background-color: #ff798e;
+        }
+        .status-bar {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: var(--panel-bg);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            color: var(--secondary);
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+        .icon {
+            font-style: normal;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Grúa Torre</h1>
+    <p class="subtitle">Panel de Control Dual</p>
+
+    <div class="control-panel">
+        
+        <!-- Carro (Adelante/Atrás) -->
+        <div class="section">
+            <div class="section-title">Carro</div>
+            <div class="joystick-group">
+                <button class="btn" data-cmd="B"><i class="icon">▼</i></button>
+                <button class="btn" data-cmd="F"><i class="icon">▲</i></button>
+            </div>
+        </div>
+
+        <!-- Elevación (Subir/Bajar) -->
+        <div class="section">
+            <div class="section-title">Gancho</div>
+            <div class="joystick-group">
+                <button class="btn" data-cmd="D"><i class="icon">▼</i></button>
+                <button class="btn" data-cmd="U"><i class="icon">▲</i></button>
+            </div>
+        </div>
+
+        <!-- Rotación (Izquierda/Derecha) -->
+        <div class="section">
+            <div class="section-title">Rotación</div>
+            <div class="joystick-group">
+                <button class="btn" data-cmd="L"><i class="icon">◀</i></button>
+                <button class="btn" data-cmd="R"><i class="icon">▶</i></button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <button class="btn stop" data-cmd="S">STOP</button>
+        </div>
+
+    </div>
+
+    <div class="status-bar" id="status">Esperando comandos...</div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        let moveInterval = null;
+        let currentCmd = null;
+        const SEND_INTERVAL_MS = 150; // Envía comandos cada 150ms
+
+        const sendCommand = async (cmd) => {
+            try {
+                // Fetch optimizado: no esperamos respuesta para no bloquear el hilo de interfaz
+                fetch(`/move?cmd=${cmd}`, { cache: "no-cache" }).catch(e => console.error(e));
+                
+                let actionText = '';
+                switch(cmd) {
+                    case 'F': actionText = 'Carro Adelante'; break;
+                    case 'B': actionText = 'Carro Atrás'; break;
+                    case 'U': actionText = 'Gancho Subiendo'; break;
+                    case 'D': actionText = 'Gancho Bajando'; break;
+                    case 'L': actionText = 'Rotando Izquierda'; break;
+                    case 'R': actionText = 'Rotando Derecha'; break;
+                    case 'S': actionText = 'DETENIDO'; break;
+                }
+                statusEl.textContent = `Estado: ${actionText}`;
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = "Estado: Error de red";
+            }
+        };
+
+        const startMoving = (cmd) => {
+            if (moveInterval) clearInterval(moveInterval);
+            currentCmd = cmd;
+            sendCommand(cmd); // enviar pulso inicial
+            moveInterval = setInterval(() => sendCommand(cmd), SEND_INTERVAL_MS);
+        };
+
+        const stopMoving = () => {
+            if (moveInterval) {
+                clearInterval(moveInterval);
+                moveInterval = null;
+            }
+            if (currentCmd !== 'S') {
+                sendCommand('S'); // enviar parada
+                currentCmd = 'S';
+            }
+        };
+
+        document.querySelectorAll('.btn').forEach(btn => {
+            const cmd = btn.getAttribute('data-cmd');
+            
+            // Usamos pointer events para unificar ratón y pantallas táctiles
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // Previene scroll o selección
+                btn.setPointerCapture(e.pointerId); // Captura el puntero para este elemento
+                startMoving(cmd);
+            });
+            
+            btn.addEventListener('pointerup', (e) => {
+                e.preventDefault();
+                btn.releasePointerCapture(e.pointerId);
+                stopMoving();
+            });
+            
+            btn.addEventListener('pointerleave', (e) => {
+                e.preventDefault();
+                stopMoving();
+            });
+            
+            // Prevenir menú contextual táctil
+            btn.addEventListener('contextmenu', e => e.preventDefault());
+        });
+
+        // Detener si ocurre un evento de cancelación a nivel global
+        document.addEventListener('pointercancel', stopMoving);
+    </script>
+</body>
+</html>

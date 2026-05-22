@@ -98,4 +98,4 @@ async def main():
 try:
     asyncio.run(main())
 except KeyboardInterrupt:
-    print("\nServidor web detenido desde el teclado.")
+    print('Servidor web detenido por el usuario.')
